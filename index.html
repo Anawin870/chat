@@ -139,14 +139,14 @@
       <div class="step-dot"><span class="n">5</span>เริ่มแชท</div>
     </div>
     <div class="tip">
-      • เปิดไฟล์นี้บนเบราว์เซอร์ของทั้งสองฝ่าย • ฝั่ง A กด “สร้าง Offer” แล้วส่งโค้ดให้ฝั่ง B • ฝั่ง B วางโค้ดแล้วกด “สร้าง Answer” และส่งกลับ • ฝั่ง A วางแล้วกด “Apply” • รหัสความปลอดภัยต้องตรงกันก่อนเริ่มคุย
+      • เปิดไฟล์นี้บนเบราว์เซอร์ของทั้งสองฝ่าย • ฝั่ง A กด "สร้าง Offer" แล้วส่งโค้ดให้ฝั่ง B • ฝั่ง B วางโค้ดแล้วกด "สร้าง Answer" และส่งกลับ • ฝั่ง A วางแล้วกด "Apply" • รหัสความปลอดภัยต้องตรงกันก่อนเริ่มคุย
     </div>
   </div>
 
   <div class="grid">
     <div class="card">
       <h2>Step 1 — ฝั่ง A สร้าง Offer</h2>
-      <p class="sub">กดปุ่มเพื่อเริ่ม จากนั้นคัดลอก “Handshake A” ส่งให้คู่สนทนา</p>
+      <p class="sub">กดปุ่มเพื่อเริ่ม จากนั้นคัดลอก "Handshake A" ส่งให้คู่สนทนา</p>
       <div class="row">
         <button id="btnOffer" class="btn primary">สร้าง Offer</button>
         <button id="btnReset" class="btn">รีเซ็ต</button>
@@ -159,10 +159,10 @@
 
     <div class="card">
       <h2>Step 2 — ฝั่ง B สร้าง Answer</h2>
-      <p class="sub">วาง “Handshake A” ที่ได้รับ แล้วกดปุ่มเพื่อสร้าง “Handshake B”</p>
+      <p class="sub">วาง "Handshake A" ที่ได้รับ แล้วกดปุ่มเพื่อสร้าง "Handshake B"</p>
       <textarea id="offerIn" placeholder="วาง Handshake A ตรงนี้..."></textarea>
       <div class="row">
-        <button id="btnAnswer" class="btn coral">สร้าง Answer</button>
+        <button id="btnAnswer" class="btn coral" disabled>สร้าง Answer</button>
       </div>
       <div class="codebox" style="margin-top:8px">
         <textarea id="answerOut" placeholder="Handshake B จะอยู่ที่นี่" readonly></textarea>
@@ -174,10 +174,10 @@
   <div class="grid">
     <div class="card">
       <h2>Step 3 — ฝั่ง A Apply Answer</h2>
-      <p class="sub">ฝั่ง A วาง “Handshake B” แล้วกด Apply เพื่อเชื่อมต่อ</p>
+      <p class="sub">ฝั่ง A วาง "Handshake B" แล้วกด Apply เพื่อเชื่อมต่อ</p>
       <textarea id="answerIn" placeholder="วาง Handshake B ตรงนี้..."></textarea>
       <div class="row">
-        <button id="btnApply" class="btn primary">Apply Answer</button>
+        <button id="btnApply" class="btn primary" disabled>Apply Answer</button>
       </div>
     </div>
 
@@ -196,7 +196,7 @@
     <h2>แชท</h2>
     <div id="chat" class="chat" aria-live="polite"></div>
     <div class="toolbar">
-      <input id="msg" type="text" placeholder="พิมพ์ข้อความแล้วกด Enter หรือกด ‘ส่ง’" />
+      <input id="msg" type="text" placeholder="พิมพ์ข้อความแล้วกด Enter หรือกด 'ส่ง'" />
       <button id="sendBtn" class="btn primary">ส่ง</button>
       <button id="clearBtn" class="btn">ล้างข้อความ</button>
     </div>
@@ -259,6 +259,60 @@
     const el = document.createElement('div'); el.className='msg ' + (who==='me'?'me':'them');
     el.textContent = text; chat.appendChild(el); chat.scrollTop = chat.scrollHeight;
   }
+
+  // ---------- Input Validation ----------
+  function validateOfferInput() {
+    try {
+        const text = offerIn.value.trim();
+        if (!text) {
+            offerIn.style.borderColor = 'var(--line)';
+            return false;
+        }
+        
+        const blob = JSON.parse(text);
+        if (blob && blob.type === 'offer' && blob.sdp && blob.pub) {
+            offerIn.style.borderColor = 'var(--ok)';
+            return true;
+        }
+    } catch (e) {
+        offerIn.style.borderColor = 'var(--err)';
+        return false;
+    }
+    offerIn.style.borderColor = 'var(--err)';
+    return false;
+  }
+
+  function validateAnswerInput() {
+    try {
+        const text = answerIn.value.trim();
+        if (!text) {
+            answerIn.style.borderColor = 'var(--line)';
+            return false;
+        }
+        
+        const blob = JSON.parse(text);
+        if (blob && blob.type === 'answer' && blob.sdp && blob.pub) {
+            answerIn.style.borderColor = 'var(--ok)';
+            return true;
+        }
+    } catch (e) {
+        answerIn.style.borderColor = 'var(--err)';
+        return false;
+    }
+    answerIn.style.borderColor = 'var(--err)';
+    return false;
+  }
+
+  // Set up input validation
+  offerIn.addEventListener('input', () => {
+    const isValid = validateOfferInput();
+    btnAnswer.disabled = !isValid;
+  });
+
+  answerIn.addEventListener('input', () => {
+    const isValid = validateAnswerInput();
+    btnApply.disabled = !isValid;
+  });
 
   // ---------- Crypto state ----------
   let pc=null, dc=null;
@@ -363,7 +417,7 @@
       await waitIce(pc);
 
       const blob = { v:1, type:'offer', sdp: pc.localDescription.sdp, pub: b64.enc(myPubRaw) };
-      offerOut.value = JSON.stringify(blob);
+      offerOut.value = JSON.stringify(blob, null, 2);
       toast('สร้าง Handshake A แล้ว');
       setConn('yellow','รอคู่สนทนา (ส่ง Handshake A)');
     }catch(e){
@@ -372,39 +426,57 @@
   };
 
   btnAnswer.onclick = async () => {
-    try{
-      const blob = JSON.parse(offerIn.value || '{}');
-      if (blob.type!=='offer' || !blob.sdp || !blob.pub) throw new Error('invalid offer');
-      theirPubRaw = b64.dec(blob.pub).buffer;
+    try {
+      setConn('yellow', 'กำลังตรวจสอบ Handshake A...');
+      sys('กำลังประมวลผล Handshake A');
+
+      const blob = JSON.parse(offerIn.value.trim() || '{}');
+      if (!blob || blob.type !== 'offer' || !blob.sdp || !blob.pub) {
+        throw new Error('ข้อมูล Handshake A ไม่ครบถ้วน');
+      }
+
+      try {
+        theirPubRaw = b64.dec(blob.pub).buffer;
+      } catch (e) {
+        throw new Error('รหัสสาธารณะไม่ถูกต้อง');
+      }
 
       pc = makePC();
-      await pc.setRemoteDescription({ type:'offer', sdp: blob.sdp });
+      await pc.setRemoteDescription({ type: 'offer', sdp: blob.sdp });
 
       myKeyPair = await genECDH();
       myPubRaw = await crypto.subtle.exportKey('raw', myKeyPair.publicKey);
-      aesKey = await deriveAES(myKeyPair.privateKey, new Uint8Array(theirPubRaw).buffer);
+      aesKey = await deriveAES(myKeyPair.privateKey, theirPubRaw);
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       await waitIce(pc);
 
-      const out = { v:1, type:'answer', sdp: pc.localDescription.sdp, pub: b64.enc(myPubRaw) };
-      answerOut.value = JSON.stringify(out);
+      const out = { 
+        v: 1, 
+        type: 'answer', 
+        sdp: pc.localDescription.sdp, 
+        pub: b64.enc(myPubRaw) 
+      };
+      
+      answerOut.value = JSON.stringify(out, null, 2);
       toast('สร้าง Handshake B แล้ว');
-      setConn('yellow','ส่ง Handshake B ให้ฝั่ง A');
+      setConn('yellow', 'ส่ง Handshake B ให้ฝั่ง A');
       sys('สร้าง Answer สำเร็จ — รอฝั่ง A Apply');
-    }catch(e){
-      console.error(e); setConn('red','ผิดพลาดขณะสร้าง Answer'); sys('ตรวจ Handshake A และลองใหม่');
+    } catch (e) {
+      console.error('Answer Error:', e);
+      setConn('red', 'ผิดพลาดขณะสร้าง Answer');
+      sys(`เกิดข้อผิดพลาด: ${e.message || 'ตรวจสอบ Handshake A'}`);
     }
   };
 
   btnApply.onclick = async () => {
     try{
-      const blob = JSON.parse(answerIn.value || '{}');
+      const blob = JSON.parse(answerIn.value.trim() || '{}');
       if (blob.type!=='answer' || !blob.sdp || !blob.pub) throw new Error('invalid answer');
       theirPubRaw = b64.dec(blob.pub).buffer;
 
-      await pc.setRemoteDescription({ type:'answer', sdp: blob.sdp });
+      await pc.setRemoteDescription({ type: 'answer', sdp: blob.sdp });
       aesKey = await deriveAES(myKeyPair.privateKey, new Uint8Array(theirPubRaw).buffer);
       setConn('yellow','กำลังเชื่อมต่อ…');
       sys('Apply Answer แล้ว — กำลังเปิดช่องทางข้อมูล');
@@ -446,6 +518,8 @@
     try{ if (pc){ pc.close(); } }catch{}
     pc=dc=null; myKeyPair=myPubRaw=theirPubRaw=aesKey=null; connected=false;
     offerOut.value=''; offerIn.value=''; answerOut.value=''; answerIn.value=''; sasEl.textContent='ยังไม่พร้อม';
+    btnAnswer.disabled = true;
+    btnApply.disabled = true;
     setConn('red','ยังไม่เชื่อมต่อ'); sys('รีเซ็ตเซสชันแล้ว');
   };
 })();
