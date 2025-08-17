@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Krabi Secure Chat — Single File E2EE</title>
+<meta name="color-scheme" content="dark light">
+<style>
+  /* ===== Krabi Premium Minimal Theme ===== */
+  :root{
+    --bg:#07141a;            /* Deep ocean */
+    --bg2:#0b2028;           /* Lagoon */
+    --panel:#0e2a33;         /* Deeper */
+    --line:#16414d;
+    --text:#e8fbff;          /* Pearl */
+    --muted:#97c6cf;
+    --accent:#39e6c2;        /* Emerald */
+    --accent2:#ff8fa3;       /* Coral */
+    --sand:#ffdca8;          /* Sand for hints */
+    --ok:#27d49a; --warn:#ffbf69; --err:#ff6b6b;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; color:var(--text); background:
+    radial-gradient(1200px 600px at 80% -10%, #0d2a36 0%, rgba(13,42,54,0) 60%),
+    radial-gradient(900px 500px at -10% 10%, #0b2930 0%, rgba(11,41,48,0) 55%),
+    linear-gradient(160deg,#061017,#0a1c22 60%, #0f2630 100%);
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", "Prompt", sans-serif;
+  }
+  .wrap{max-width:980px;margin:auto;padding:20px}
+  header{
+    display:flex; gap:14px; align-items:center; justify-content:space-between; margin-bottom:14px;
+  }
+  .brand{
+    display:flex; align-items:center; gap:12px;
+  }
+  .logo{
+    width:36px; height:36px; border-radius:10px;
+    background: conic-gradient(from 140deg, var(--accent) 0 40%, #35b9f0 40% 70%, var(--accent2) 70% 100%);
+    box-shadow: 0 0 0 2px rgba(255,255,255,.06), 0 8px 20px rgba(57,230,194,.25);
+  }
+  .title{font-weight:800; letter-spacing:.3px}
+  .badge{font-size:12px;color:var(--accent); background:rgba(57,230,194,.12); border:1px solid rgba(57,230,194,.35); padding:4px 10px; border-radius:999px;}
+  .status{
+    display:flex; align-items:center; gap:8px; font-weight:700;
+    background: rgba(255,255,255,.04); padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.06)
+  }
+  .dot{width:10px;height:10px;border-radius:50%}
+  .dot.red{background:var(--err)} .dot.yellow{background:var(--warn)} .dot.green{background:var(--ok)}
+
+  .card{
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:16px; padding:16px; margin:14px 0; box-shadow: var(--shadow);
+  }
+  .card h2{margin:4px 0 4px; font-size:18px}
+  .sub{color:var(--muted); margin:4px 0 8px}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  @media (max-width:800px){ .grid{grid-template-columns:1fr} }
+
+  textarea, input[type=text]{
+    width:100%; background: #0a1e27; color:#e6fbff;
+    border:1px solid var(--line); border-radius:12px; padding:12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Noto Sans Mono", monospace;
+  }
+  textarea{min-height:110px}
+  .row{display:flex; gap:10px; flex-wrap:wrap}
+  .row>*{flex:1 1 auto}
+  .btn{
+    border:1px solid rgba(255,255,255,.1);
+    background: linear-gradient(135deg, #0d3944, #0b2f3a);
+    color:#e7feff; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:700;
+  }
+  .btn.primary{
+    background: linear-gradient(135deg, var(--accent), #32d3b5);
+    color:#06261f; border:none; box-shadow: 0 10px 20px rgba(57,230,194,.25);
+  }
+  .btn.coral{
+    background: linear-gradient(135deg, var(--accent2), #ff7a95);
+    color:#3b0a15; border:none; box-shadow: 0 10px 20px rgba(255,143,163,.25);
+  }
+  .btn:disabled{opacity:.55; cursor:not-allowed}
+  .pill{
+    display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px;
+    border:1px dashed #37545d; color:#bdeaf1; background: rgba(255,255,255,.03); font-family: ui-monospace,monospace;
+  }
+  .hint{font-size:13px; color:#a7dbe4}
+  .tip{font-size:13px; color:#243f46; background:linear-gradient(180deg, #0f3945, #0b2d36); border:1px solid #16414d; border-radius:12px; padding:10px; }
+
+  /* Chat */
+  .chat{
+    height:300px; background:#071a21; border:1px solid #143740; border-radius:14px; padding:10px; overflow:auto;
+  }
+  .msg{max-width:76%; margin:8px 0; padding:10px 12px; border-radius:12px; line-height:1.35}
+  .me{margin-left:auto; background: #163c46; border:1px solid #1f5663}
+  .them{background:#0f2c34; border:1px solid #1a4753}
+  .sys{color:#98d1db; font-size:12px; margin:6px 2px}
+
+  .toolbar{display:flex; gap:8px; align-items:center; margin-top:10px}
+  .toolbar input{flex:1}
+  .copy-row{display:flex; gap:8px; align-items:center; margin:6px 0}
+  .codebox{position:relative}
+  .codebox .copy{position:absolute; top:8px; right:8px}
+
+  /* Step wizard */
+  .steps{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0}
+  .step-dot{display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06)}
+  .step-dot .n{width:20px;height:20px;border-radius:50%; display:inline-grid; place-items:center; background:#103744; color:#bff6ff; font-weight:900; font-size:12px}
+  .step-dot.active{background:rgba(57,230,194,.12); border-color: rgba(57,230,194,.35)}
+  .step-dot.active .n{background:var(--accent); color:#073f35}
+
+  /* Toast */
+  .toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#0d2b33; color:#c6f7ff; border:1px solid #24515a; padding:10px 14px; border-radius:10px; opacity:0; pointer-events:none; transition:.25s}
+  .toast.show{opacity:1}
+  footer{margin:12px 0; color:#99cfdb; font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <div class="title">Krabi Secure Chat</div>
+        <div class="badge">E2EE • X25519 • AES‑GCM • P2P</div>
+      </div>
+    </div>
+    <div class="status"><span id="connDot" class="dot red"></span><span id="connText">ยังไม่เชื่อมต่อ</span></div>
+  </header>
+
+  <div class="card">
+    <h2>คู่มือย่อ</h2>
+    <div class="steps">
+      <div class="step-dot active"><span class="n">1</span>ฝั่ง A สร้าง Offer</div>
+      <div class="step-dot"><span class="n">2</span>ฝั่ง B สร้าง Answer</div>
+      <div class="step-dot"><span class="n">3</span>ฝั่ง A Apply</div>
+      <div class="step-dot"><span class="n">4</span>เทียบรหัสความปลอดภัย</div>
+      <div class="step-dot"><span class="n">5</span>เริ่มแชท</div>
+    </div>
+    <div class="tip">
+      • เปิดไฟล์นี้บนเบราว์เซอร์ของทั้งสองฝ่าย • ฝั่ง A กด “สร้าง Offer” แล้วส่งโค้ดให้ฝั่ง B • ฝั่ง B วางโค้ดแล้วกด “สร้าง Answer” และส่งกลับ • ฝั่ง A วางแล้วกด “Apply” • รหัสความปลอดภัยต้องตรงกันก่อนเริ่มคุย
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Step 1 — ฝั่ง A สร้าง Offer</h2>
+      <p class="sub">กดปุ่มเพื่อเริ่ม จากนั้นคัดลอก “Handshake A” ส่งให้คู่สนทนา</p>
+      <div class="row">
+        <button id="btnOffer" class="btn primary">สร้าง Offer</button>
+        <button id="btnReset" class="btn">รีเซ็ต</button>
+      </div>
+      <div class="codebox">
+        <textarea id="offerOut" placeholder="Handshake A จะอยู่ที่นี่" readonly></textarea>
+        <button class="btn copy copyA">คัดลอก</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Step 2 — ฝั่ง B สร้าง Answer</h2>
+      <p class="sub">วาง “Handshake A” ที่ได้รับ แล้วกดปุ่มเพื่อสร้าง “Handshake B”</p>
+      <textarea id="offerIn" placeholder="วาง Handshake A ตรงนี้..."></textarea>
+      <div class="row">
+        <button id="btnAnswer" class="btn coral">สร้าง Answer</button>
+      </div>
+      <div class="codebox" style="margin-top:8px">
+        <textarea id="answerOut" placeholder="Handshake B จะอยู่ที่นี่" readonly></textarea>
+        <button class="btn copy copyB">คัดลอก</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Step 3 — ฝั่ง A Apply Answer</h2>
+      <p class="sub">ฝั่ง A วาง “Handshake B” แล้วกด Apply เพื่อเชื่อมต่อ</p>
+      <textarea id="answerIn" placeholder="วาง Handshake B ตรงนี้..."></textarea>
+      <div class="row">
+        <button id="btnApply" class="btn primary">Apply Answer</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>ความปลอดภัย</h2>
+      <p class="sub">รหัสความปลอดภัย (SAS) ต้องตรงกันทั้งสองฝั่ง → หากไม่ตรง ให้หยุดใช้งาน</p>
+      <div class="row">
+        <div class="pill"><span>รหัส:</span> <span id="sas">ยังไม่พร้อม</span></div>
+        <div class="pill"><span>โหมด:</span> <span>End‑to‑End Encryption</span></div>
+      </div>
+      <p class="hint" style="margin-top:8px">ข้อแนะนำ: หากเครือข่ายบล็อก P2P อาจเชื่อมไม่ติด ต้องใช้ TURN (นอกเหนือไฟล์เดียวนี้)</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>แชท</h2>
+    <div id="chat" class="chat" aria-live="polite"></div>
+    <div class="toolbar">
+      <input id="msg" type="text" placeholder="พิมพ์ข้อความแล้วกด Enter หรือกด ‘ส่ง’" />
+      <button id="sendBtn" class="btn primary">ส่ง</button>
+      <button id="clearBtn" class="btn">ล้างข้อความ</button>
+    </div>
+    <div class="sub" style="margin-top:6px">ไม่มีการเก็บบันทึก ข้อความถูกเข้ารหัสและอยู่บนอุปกรณ์ของคุณเท่านั้น</div>
+  </div>
+
+  <footer>
+    • Krabi Style UI by emerald sea & coral accents • เข้ารหัส X25519 + HKDF + AES‑GCM • ใช้เฉพาะการสนทนาที่ไว้ใจกันและตรวจ SAS ทุกครั้ง
+  </footer>
+</div>
+
+<div id="toast" class="toast">คัดลอกแล้ว</div>
+
+<script>
+(() => {
+  // ---------- Helpers ----------
+  const $ = id => document.getElementById(id);
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  const b64 = {
+    enc: b => btoa(String.fromCharCode(...new Uint8Array(b))),
+    dec: s => Uint8Array.from(atob(s), c => c.charCodeAt(0))
+  };
+  const hex = buf => [...new Uint8Array(buf)].map(x=>x.toString(16).padStart(2,'0')).join('');
+  const sha256 = async (data) => {
+    if (!(data instanceof ArrayBuffer)) data = new Uint8Array(data).buffer;
+    return await crypto.subtle.digest('SHA-256', data);
+  };
+  const concatBuf = (...arrs) => {
+    const total = arrs.reduce((n,a)=>n+a.byteLength,0);
+    const out = new Uint8Array(total);
+    let off=0; for (const a of arrs){ out.set(new Uint8Array(a), off); off+=a.byteLength; }
+    return out.buffer;
+  };
+  const lexSort = (a,b) => {
+    const A=new Uint8Array(a), B=new Uint8Array(b);
+    const n=Math.min(A.length,B.length);
+    for(let i=0;i<n;i++) if(A[i]!==B[i]) return A[i]-B[i];
+    return A.length-B.length;
+  };
+  const toast = (text='คัดลอกแล้ว') => {
+    const t = $('toast'); t.textContent = text; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 1200);
+  };
+
+  // ---------- UI ----------
+  const connDot=$('connDot'), connText=$('connText');
+  const offerOut=$('offerOut'), offerIn=$('offerIn'), answerOut=$('answerOut'), answerIn=$('answerIn');
+  const btnOffer=$('btnOffer'), btnAnswer=$('btnAnswer'), btnApply=$('btnApply'), btnReset=$('btnReset');
+  const chat=$('chat'), msg=$('msg'), sendBtn=$('sendBtn'), clearBtn=$('clearBtn'), sasEl=$('sas');
+
+  function setConn(state, text){
+    connDot.className = 'dot ' + (state==='green'?'green':state==='yellow'?'yellow':'red');
+    connText.textContent = text;
+  }
+  function sys(text){
+    const el = document.createElement('div'); el.className='sys'; el.textContent=text;
+    chat.appendChild(el); chat.scrollTop = chat.scrollHeight;
+  }
+  function addMsg(who, text){
+    const el = document.createElement('div'); el.className='msg ' + (who==='me'?'me':'them');
+    el.textContent = text; chat.appendChild(el); chat.scrollTop = chat.scrollHeight;
+  }
+
+  // ---------- Crypto state ----------
+  let pc=null, dc=null;
+  let myKeyPair=null, myPubRaw=null, theirPubRaw=null, aesKey=null;
+  let connected=false;
+
+  async function genECDH(){
+    return await crypto.subtle.generateKey(
+      { name:'ECDH', namedCurve:'P-256' },
+      true,
+      ['deriveBits']
+    );
+  }
+  async function deriveAES(myPriv, theirPubRawBuf){
+    const theirPub = await crypto.subtle.importKey(
+      'raw', theirPubRawBuf,
+      { name:'ECDH', namedCurve:'P-256' },
+      false, []
+    );
+    const shared = await crypto.subtle.deriveBits(
+      { name:'ECDH', public: theirPub },
+      myPriv,
+      256
+    );
+    const [minPub, maxPub] = lexSort(myPubRaw, theirPubRawBuf) <= 0 ? [myPubRaw, theirPubRawBuf] : [theirPubRawBuf, myPubRaw];
+    const salt = await sha256(concatBuf(minPub, maxPub));
+    const hkdfKey = await crypto.subtle.importKey('raw', shared, 'HKDF', false, ['deriveKey']);
+    const info = new TextEncoder().encode('KrabiSecureChat-v1');
+    const key = await crypto.subtle.deriveKey(
+      { name:'HKDF', hash:'SHA-256', salt, info },
+      hkdfKey,
+      { name:'AES-GCM', length:256 },
+      false,
+      ['encrypt','decrypt']
+    );
+    const raw = await crypto.subtle.exportKey('raw', key);
+    const sas = await sha256(raw);
+    const pretty = [...new Uint8Array(sas)].slice(0,6).map(b=>b.toString(16).padStart(2,'0')).join('').match(/.{1,4}/g).join(' ').toUpperCase();
+    document.getElementById('sas').textContent = pretty;
+    return key;
+  }
+  async function encMsg(key, text){
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, enc.encode(text));
+    return { n: b64.enc(iv), c: b64.enc(ct) };
+  }
+  async function decMsg(key, nonceB64, ctB64){
+    const iv = b64.dec(nonceB64);
+    const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, b64.dec(ctB64));
+    return dec.decode(pt);
+  }
+
+  // ---------- WebRTC ----------
+  function makePC(){
+    const iceServers = [{ urls: ['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302'] }];
+    const _pc = new RTCPeerConnection({ iceServers });
+    _pc.oniceconnectionstatechange = () => {
+      const s=_pc.iceConnectionState;
+      if (s==='connected' || s==='completed'){ setConn('green','เชื่อมต่อแล้ว'); connected = true; }
+      else if (s==='checking'){ setConn('yellow','กำลังเชื่อมต่อ…'); }
+      else if (s==='disconnected' || s==='failed'){ setConn('red','ขาดการเชื่อมต่อ'); connected = false; }
+    };
+    _pc.ondatachannel = e => { dc = e.channel; wireDC(); };
+    return _pc;
+  }
+  function wireDC(){
+    dc.onopen = () => { setConn('green','เชื่อมต่อแล้ว'); sys('เปิดช่องทางข้อมูลสำเร็จ'); };
+    dc.onclose = () => { setConn('red','ขาดการเชื่อมต่อ'); sys('ปิดช่องทางข้อมูล'); };
+    dc.onmessage = async e => {
+      try{
+        const obj = JSON.parse(e.data);
+        if (obj.t==='m'){
+          const text = await decMsg(aesKey, obj.n, obj.c);
+          addMsg('them', text);
+        }
+      }catch(err){ sys('รับข้อความไม่ได้/รูปแบบไม่ถูกต้อง'); }
+    };
+  }
+
+  async function waitIce(pc){
+    if (pc.iceGatheringState === 'complete') return;
+    await new Promise(res => {
+      const check = () => { if (pc.iceGatheringState === 'complete'){ pc.removeEventListener('icegatheringstatechange', check); res(); } };
+      pc.addEventListener('icegatheringstatechange', check);
+      setTimeout(res, 1500);
+    });
+  }
+
+  // ---------- Actions ----------
+  btnOffer.onclick = async () => {
+    try{
+      setConn('yellow','กำลังเตรียม…'); sys('กำลังสร้างกุญแจและ Offer');
+      pc = makePC();
+      dc = pc.createDataChannel('chat', {ordered:true});
+      wireDC();
+
+      myKeyPair = await genECDH();
+      myPubRaw = await crypto.subtle.exportKey('raw', myKeyPair.publicKey);
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await waitIce(pc);
+
+      const blob = { v:1, type:'offer', sdp: pc.localDescription.sdp, pub: b64.enc(myPubRaw) };
+      offerOut.value = JSON.stringify(blob);
+      toast('สร้าง Handshake A แล้ว');
+      setConn('yellow','รอคู่สนทนา (ส่ง Handshake A)');
+    }catch(e){
+      console.error(e); setConn('red','ผิดพลาดขณะสร้าง Offer'); sys('สร้าง Offer ไม่สำเร็จ');
+    }
+  };
+
+  btnAnswer.onclick = async () => {
+    try{
+      const blob = JSON.parse(offerIn.value || '{}');
+      if (blob.type!=='offer' || !blob.sdp || !blob.pub) throw new Error('invalid offer');
+      theirPubRaw = b64.dec(blob.pub).buffer;
+
+      pc = makePC();
+      await pc.setRemoteDescription({ type:'offer', sdp: blob.sdp });
+
+      myKeyPair = await genECDH();
+      myPubRaw = await crypto.subtle.exportKey('raw', myKeyPair.publicKey);
+      aesKey = await deriveAES(myKeyPair.privateKey, new Uint8Array(theirPubRaw).buffer);
+
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await waitIce(pc);
+
+      const out = { v:1, type:'answer', sdp: pc.localDescription.sdp, pub: b64.enc(myPubRaw) };
+      answerOut.value = JSON.stringify(out);
+      toast('สร้าง Handshake B แล้ว');
+      setConn('yellow','ส่ง Handshake B ให้ฝั่ง A');
+      sys('สร้าง Answer สำเร็จ — รอฝั่ง A Apply');
+    }catch(e){
+      console.error(e); setConn('red','ผิดพลาดขณะสร้าง Answer'); sys('ตรวจ Handshake A และลองใหม่');
+    }
+  };
+
+  btnApply.onclick = async () => {
+    try{
+      const blob = JSON.parse(answerIn.value || '{}');
+      if (blob.type!=='answer' || !blob.sdp || !blob.pub) throw new Error('invalid answer');
+      theirPubRaw = b64.dec(blob.pub).buffer;
+
+      await pc.setRemoteDescription({ type:'answer', sdp: blob.sdp });
+      aesKey = await deriveAES(myKeyPair.privateKey, new Uint8Array(theirPubRaw).buffer);
+      setConn('yellow','กำลังเชื่อมต่อ…');
+      sys('Apply Answer แล้ว — กำลังเปิดช่องทางข้อมูล');
+    }catch(e){
+      console.error(e); setConn('red','Apply ไม่สำเร็จ'); sys('ตรวจ Handshake B แล้วลองใหม่');
+    }
+  };
+
+  async function sendCurrent(){
+    const text = msg.value.trim();
+    if (!text) return;
+    if (!dc || dc.readyState!=='open'){ sys('ยังไม่เชื่อมต่อ'); return; }
+    try{
+      const { n, c } = await encMsg(aesKey, text);
+      dc.send(JSON.stringify({ t:'m', n, c }));
+      addMsg('me', text);
+      msg.value = '';
+    }catch(e){ sys('ส่งไม่สำเร็จ'); }
+  }
+  sendBtn.onclick = sendCurrent;
+  msg.addEventListener('keydown', e => { if (e.key === 'Enter') sendCurrent(); });
+  clearBtn.onclick = () => { chat.innerHTML = ''; sys('ล้างข้อความแล้ว'); };
+
+  // Copy buttons
+  for (const [sel, target] of [['.copyA','offerOut'], ['.copyB','answerOut']]){
+    for (const btn of document.querySelectorAll(sel)){
+      btn.addEventListener('click', async () => {
+        const val = $(target).value;
+        if (!val) return;
+        try{ await navigator.clipboard.writeText(val); toast(); }
+        catch{ /* fallback */ $(target).select(); document.execCommand('copy'); toast(); }
+      });
+    }
+  }
+
+  // Reset session
+  btnReset.onclick = () => {
+    try{ if (dc){ dc.close(); } }catch{}
+    try{ if (pc){ pc.close(); } }catch{}
+    pc=dc=null; myKeyPair=myPubRaw=theirPubRaw=aesKey=null; connected=false;
+    offerOut.value=''; offerIn.value=''; answerOut.value=''; answerIn.value=''; sasEl.textContent='ยังไม่พร้อม';
+    setConn('red','ยังไม่เชื่อมต่อ'); sys('รีเซ็ตเซสชันแล้ว');
+  };
+})();
+</script>
+</body>
+</html>
